@@ -44,7 +44,7 @@ int kprintf(const char *format, ...) {
     va_end(args);
 }
 
-int	mkbufpool(int bufsiz, int count)
+int mkbufpool(int bufsiz, int count)
 {
     printf("mkbufpool(%d, %d)\n", bufsiz, count);
     return bufsiz;
