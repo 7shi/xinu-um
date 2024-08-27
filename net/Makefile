@@ -4,7 +4,7 @@ SOURCES = _main.o \
           icmp.c ip.c net.c pdump.c pxe.c tftp.c udp.c
 OBJECTS = $(SOURCES:.c=.o)
 CC      = gcc
-CFLAGS  = -I../include -I../config -nostdinc -fno-builtin -D_USER_MODE
+CFLAGS  = -g -I../include -I../config -nostdinc -fno-builtin -D_USER_MODE
 
 all: $(TARGET)
 
@@ -16,7 +16,7 @@ $(LIB): $(OBJECTS)
 	ar r $@ $^
 
 _main.o: _main.c
-	gcc -c $<
+	gcc -g -c $<
 
 $(TARGET): $(OBJECTS)
 	gcc -o $@ $^
