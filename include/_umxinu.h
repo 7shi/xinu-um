@@ -1,4 +1,4 @@
-#ifdef _UMXINU
+#ifdef _USER_MODE
 #define	chprio  xinu_chprio
 #define	close   xinu_close
 #define	control xinu_control
