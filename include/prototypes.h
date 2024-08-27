@@ -1,3 +1,4 @@
+#include "_umxinu.h"
 
 /* in file 82545EMInit.c */
 extern	status	_82545EMInit(struct ethcblk *);
