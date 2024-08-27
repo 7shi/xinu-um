@@ -22,7 +22,7 @@ struct sysid_entry_point
 	byte   header[7];
 	byte   checksum;
 	uint16 len;
-	uint32 bios_structure_addr;
+	intptr bios_structure_addr;
 	uint16 bios_struct_count;
 	byte   sysid_bios_revision;
 };

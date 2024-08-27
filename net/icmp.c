@@ -53,7 +53,7 @@ void	icmp_in(
 				pkt->net_icident, pkt->net_icseq,
 				(char *) &pkt->net_icdata,
 				pkt->net_iplen-IP_HDR_LEN-ICMP_HDR_LEN);
-		if ((int32)replypkt != SYSERR) {
+		if ((intptr)replypkt != SYSERR) {
 			ip_enqueue(replypkt);
 		}
 		freebuf((char *)pkt);
@@ -250,7 +250,7 @@ status	icmp_send (
 	/* Form a packet to send */
 
 	pkt = icmp_mkpkt(remip, type, ident, seq, buf, len);
-	if ((int32)pkt == SYSERR) {
+	if ((intptr)pkt == SYSERR) {
 		return SYSERR;
 	}
 
@@ -282,7 +282,7 @@ struct	netpacket *icmp_mkpkt (
 
 	pkt = (struct netpacket *)getbuf(netbufpool);
 
-	if ((int32)pkt == SYSERR) {
+	if ((intptr)pkt == SYSERR) {
 		panic("icmp_mkpkt: cannot get a network buffer\n");
 	}
 

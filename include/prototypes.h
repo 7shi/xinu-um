@@ -40,7 +40,7 @@ extern	void	clkdisp(void);
 extern	syscall	close(did32);
 
 /* in file control.c */
-extern	syscall	control(did32, int32, int32, int32);
+extern	syscall	control(did32, int32, intptr, intptr);
 
 /* in file create.c */
 extern	pid32	create(void *, uint32, pri16, char *, uint32, ...);

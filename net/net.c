@@ -22,7 +22,7 @@ void	net_init (void)
 
 	/* Obtain the Ethernet MAC address */
 
-	control(ETHER0, ETH_CTRL_GET_MAC, (int32)NetData.ethucast, 0);
+	control(ETHER0, ETH_CTRL_GET_MAC, (intptr)NetData.ethucast, 0);
 
 	memset((char *)NetData.ethbcast, 0xFF, ETH_ADDR_LEN);
 

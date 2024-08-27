@@ -369,7 +369,7 @@ status	udp_send (
 
 	pkt = (struct netpacket *)getbuf(netbufpool);
 
-	if ((int32)pkt == SYSERR) {
+	if ((intptr)pkt == SYSERR) {
 		restore(mask);
 		return SYSERR;
 	}
@@ -453,7 +453,7 @@ status	udp_sendto (
 
 	pkt = (struct netpacket *)getbuf(netbufpool);
 
-	if ((int32)pkt == SYSERR) {
+	if ((intptr)pkt == SYSERR) {
 		restore(mask);
 		return SYSERR;
 	}

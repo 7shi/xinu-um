@@ -14,7 +14,7 @@ struct sysid_entry_point* get_sysid_entry_point()
 	/* Search for the SYSID Entry Point Table */
 	/*   The table is 16 byte aligned and is located somewhere between */
 	/*     the starting address and the ending address                 */
-	uint32 i;
+	intptr i;
 	for(i = SYSID_ENTRY_POINT_SADDR; i < SYSID_ENTRY_POINT_EADDR; i += 16) {
 	    struct sysid_entry_point* sysid_entry = (struct sysid_entry_point*)i;
 		if(memcmp(sysid_entry->header, SYSID_ENTRY_POINT_HDR, sizeof(sysid_entry->header)) == 0) {
@@ -79,7 +79,7 @@ int32 build_dhcp_discover_pxe(struct dhcpmsg* dmsg)
 	memset(&dmsg->dc_chaddr,'\0',16);/* Client hardware address	*/
 	memcpy(&dmsg->dc_chaddr, NetData.ethucast, ETH_ADDR_LEN);
 	memset(&dmsg->dc_bootp,'\0',192);/* zero the bootp area		*/
-	dmsg->dc_cookie = htonl(0x63825363); /* Magic cookie for DHCP	*/
+	dmsg->dc_cookie = htonl(0x63825363L); /* Magic cookie for DHCP	*/
 	
 	j = 0;
 	
