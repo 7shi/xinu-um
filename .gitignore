@@ -1,0 +1,5 @@
+*.o
+a.out
+compile/bin
+compile/binaries
+
