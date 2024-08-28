@@ -101,7 +101,7 @@ void	hexadump	(
 	}
 	kprintf("  ");
 
-	for (i=0; i<2; i++) {
+	for (i=0; i<4; i++) {
 		kprintf("%02x", 0xff & *p++);
 	}
 	kprintf("  ");
@@ -111,7 +111,7 @@ void	hexadump	(
 	}
 	kprintf("  ");
 
-	for (i=0; i<2; i++) {
+	for (i=0; i<4; i++) {
 		kprintf("%02x", 0xff & *p++);
 	}
 	kprintf("\tSHA   SPA  THA  TPA\n");
