@@ -25,14 +25,16 @@ unsigned short read16be(const void *buf) {
     return (p[0] << 8) | p[1];
 }
 
-void dump_packet(const char *buf, int size) {
-    if (read16be(&buf[12]) == ETH_ARP) {
+int dump_packet(const char *buf, int size) {
+    int ret = read16be(&buf[12]);
+    if (ret == ETH_ARP) {
         printf("==== Packet (ARP) ====\n");
         hexadump(buf, size);
     } else {
         printf("==== Packet ====\n");
         hexdump(buf, size);
     }
+    return ret;
 }
 
 int xinu_read(int did, char *buf, unsigned size) {
