@@ -25,6 +25,11 @@ unsigned short read16be(const void *buf) {
     return (p[0] << 8) | p[1];
 }
 
+unsigned read32be(const void *buf) {
+    unsigned char *p = (unsigned char *)buf;
+    return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+}
+
 int dump_packet(const char *buf, int size) {
     int ret = read16be(&buf[12]);
     if (ret == ETH_ARP) {
