@@ -47,10 +47,27 @@ int xinu_read(int did, char *buf, unsigned size) {
     return 0;
 }
 
+extern void arp_packet(
+    void *apkt, unsigned short op,
+    void *dst_mac, unsigned dst_ip,
+    void *src_mac, unsigned src_ip);
+extern void arp_in(void *);
+
+extern unsigned char NetData[48];
+
 int xinu_write(int did, char *buf, unsigned size) {
     printf("write(%d, %p, %u)\n", did, buf, size);
     hexdump2(buf, size);
-    if (did == 2) dump_packet(buf, size);
+    if (did == 2 && dump_packet(buf, size) == ETH_ARP && read16be(&buf[14]) == 1) {
+        const int apkt_size = 48;
+        unsigned char *apkt = malloc(apkt_size);
+        long mac = ((long)apkt) & 0xffffffffffffL;
+        unsigned ips = read32be(&buf[0x26]);
+        arp_packet(apkt, 2, &NetData[33], *(unsigned *)NetData, &mac, read32be(&buf[0x26]));
+        hexdump2(apkt, apkt_size);
+        dump_packet(apkt, apkt_size);
+        arp_in(apkt);
+    }
     return 0;
 }
 
@@ -190,8 +207,6 @@ extern int dnslookup(const char *, unsigned *);
 extern int icmp_register(unsigned);
 extern int icmp_send(unsigned, unsigned short, unsigned short, unsigned short, char *, int);
 extern int icmp_release(int);
-
-extern unsigned char NetData[48];
 
 int main(int argc, char *argv[])
 {
