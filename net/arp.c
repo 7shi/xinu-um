@@ -18,6 +18,53 @@ void	arp_init(void)
 }
 
 /*------------------------------------------------------------------------
+ * arp_packet  -  Create an ARP packet
+ *------------------------------------------------------------------------
+ */
+void arp_packet(
+	struct arppacket *apkt, uint16 op,
+	const byte *dst_mac, uint32 dst_ip,
+	const byte *src_mac, uint32 src_ip)
+{
+	/* Hand-craft an ARP reply packet and send back to requester	*/
+
+	if (dst_mac) {
+		memcpy(apkt->arp_ethdst, dst_mac, ARP_HALEN);
+	} else {
+		memcpy(apkt->arp_ethdst, NetData.ethbcast, ETH_ADDR_LEN);
+	}
+	memcpy(apkt->arp_ethsrc, src_mac, ARP_HALEN);
+	apkt->arp_ethtype= ETH_ARP;		/* Frame carries ARP	*/
+	apkt->arp_htype	= ARP_HTYPE;		/* Hardware is Ethernet	*/
+	apkt->arp_ptype	= ARP_PTYPE;		/* Protocol is IP	*/
+	apkt->arp_hlen	= ARP_HALEN;		/* Ethernet address size*/
+	apkt->arp_plen	= ARP_PALEN;		/* IP address size	*/
+	apkt->arp_op	= op;
+
+	/* Insert local Ethernet and IP address in sender fields	*/
+
+	memcpy(apkt->arp_sndha, src_mac, ARP_HALEN);
+	apkt->arp_sndpa = src_ip;
+
+	/* Copy target Ethernet and IP addresses from request packet */
+
+	if (dst_mac) {
+		memcpy(apkt->arp_tarha, dst_mac, ARP_HALEN);
+	} else {
+		memset(apkt->arp_tarha, '\0', ARP_HALEN); /* Target HA is unknown*/
+	}
+	apkt->arp_tarpa = dst_ip;
+
+	/* Convert ARP packet from host to network byte order */
+
+	arp_hton(apkt);
+
+	/* Convert the Ethernet header to network byte order */
+
+	eth_hton((struct netpacket *)apkt);
+}
+
+/*------------------------------------------------------------------------
  * arp_resolve  -  Use ARP to resolve an IP address to an Ethernet address
  *------------------------------------------------------------------------
  */
@@ -96,31 +143,12 @@ status	arp_resolve (
 	arptr->arpaddr = nxthop;
 	arptr->arpid = currpid;
 
-	/* Hand-craft an ARP Request packet */
-
-	memcpy(apkt.arp_ethdst, NetData.ethbcast, ETH_ADDR_LEN);
-	memcpy(apkt.arp_ethsrc, NetData.ethucast, ETH_ADDR_LEN);
-	apkt.arp_ethtype = ETH_ARP;	  /* Packet type is ARP		*/
-	apkt.arp_htype = ARP_HTYPE;	  /* Hardware type is Ethernet	*/
-	apkt.arp_ptype = ARP_PTYPE;	  /* Protocol type is IP	*/
-	apkt.arp_hlen = 0xff & ARP_HALEN; /* Ethernet MAC size in bytes	*/
-	apkt.arp_plen = 0xff & ARP_PALEN; /* IP address size in bytes	*/
-	apkt.arp_op = 0xffff & ARP_OP_REQ;/* ARP type is Request	*/
-	memcpy(apkt.arp_sndha, NetData.ethucast, ARP_HALEN);
-	apkt.arp_sndpa = NetData.ipucast; /* IP address of interface	*/
-	memset(apkt.arp_tarha, '\0', ARP_HALEN); /* Target HA is unknown*/
-	apkt.arp_tarpa = nxthop;	  /* Target protocol address	*/
-
-	/* Convert ARP packet from host to net byte order */
-
-	arp_hton(&apkt);
-
-	/* Convert Ethernet header from host to net byte order */
-
-	eth_hton((struct netpacket *)&apkt);
-
 	/* Send the packet ARP_RETRY times and await response */
 
+	arp_packet(
+		&apkt, ARP_OP_REQ,
+		NULL, nxthop,
+		NetData.ethucast, NetData.ipucast);
 	msg = recvclr();
 	for (i=0; i<ARP_RETRY; i++) {
 		write(ETHER0, (char *)&apkt, sizeof(struct arppacket));
@@ -254,37 +282,12 @@ void	arp_in (
 		arptr->arstate = AR_RESOLVED;
 	}
 
-	/* Hand-craft an ARP reply packet and send back to requester	*/
-
-	memcpy(apkt.arp_ethdst, pktptr->arp_sndha, ARP_HALEN);
-	memcpy(apkt.arp_ethsrc, NetData.ethucast, ARP_HALEN);
-	apkt.arp_ethtype= ETH_ARP;		/* Frame carries ARP	*/
-	apkt.arp_htype	= ARP_HTYPE;		/* Hardware is Ethernet	*/
-	apkt.arp_ptype	= ARP_PTYPE;		/* Protocol is IP	*/
-	apkt.arp_hlen	= ARP_HALEN;		/* Ethernet address size*/
-	apkt.arp_plen	= ARP_PALEN;		/* IP address size	*/
-	apkt.arp_op	= ARP_OP_RPLY;		/* Type is Reply	*/
-
-	/* Insert local Ethernet and IP address in sender fields	*/
-
-	memcpy(apkt.arp_sndha, NetData.ethucast, ARP_HALEN);
-	apkt.arp_sndpa = NetData.ipucast;
-
-	/* Copy target Ethernet and IP addresses from request packet */
-
-	memcpy(apkt.arp_tarha, pktptr->arp_sndha, ARP_HALEN);
-	apkt.arp_tarpa = pktptr->arp_sndpa;
-
-	/* Convert ARP packet from host to network byte order */
-
-	arp_hton(&apkt);
-
-	/* Convert the Ethernet header to network byte order */
-
-	eth_hton((struct netpacket *)&apkt);
-
 	/* Send the reply */
 
+	arp_packet(
+		&apkt, ARP_OP_RPLY,
+		pktptr->arp_sndha, pktptr->arp_sndpa,
+		NetData.ethucast, NetData.ipucast);
 	write(ETHER0, (char *)&apkt, sizeof(struct arppacket));
 	freebuf((char *)pktptr);
 	restore(mask);
