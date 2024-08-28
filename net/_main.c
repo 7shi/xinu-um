@@ -12,6 +12,7 @@ extern void hexadump(const char *, int);
 void hexdump2(const char *buf, int len) {
     int i, f;
     const unsigned char *b = buf;
+    printf("==== Dump ====\n");
     for (i = 0; i < len; i++, b++) {
         if (i) printf(i & 15 ? " " : "\n");
         printf("%02x", *b);
@@ -26,10 +27,10 @@ unsigned short read16be(const void *buf) {
 
 void dump_packet(const char *buf, int size) {
     if (read16be(&buf[12]) == ETH_ARP) {
-        printf("[Packet (ARP)]\n");
+        printf("==== Packet (ARP) ====\n");
         hexadump(buf, size);
     } else {
-        printf("[Packet]\n");
+        printf("==== Packet ====\n");
         hexdump(buf, size);
     }
 }
