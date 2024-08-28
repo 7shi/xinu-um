@@ -34,10 +34,10 @@ int dump_packet(const char *buf, int size) {
     int ret = read16be(&buf[12]);
     if (ret == ETH_ARP) {
         printf("==== Packet (ARP) ====\n");
-        hexadump(buf, size);
+        hexadump(buf, size - 14);
     } else {
         printf("==== Packet ====\n");
-        hexdump(buf, size);
+        hexdump(buf, size - 14);
     }
     return ret;
 }
@@ -59,7 +59,7 @@ int xinu_write(int did, char *buf, unsigned size) {
     printf("write(%d, %p, %u)\n", did, buf, size);
     hexdump2(buf, size);
     if (did == 2 && dump_packet(buf, size) == ETH_ARP && read16be(&buf[14]) == 1) {
-        const int apkt_size = 48;
+        const int apkt_size = 42;
         unsigned char *apkt = malloc(apkt_size);
         long mac = ((long)apkt) & 0xffffffffffffL;
         unsigned ips = read32be(&buf[0x26]);
