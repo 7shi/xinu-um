@@ -4,9 +4,12 @@
 #include <string.h>
 #include <sys/time.h>
 
-extern void hexdump(char *, int);
+#define ETH_ARP 0x0806
 
-void hexdump2(char *buf, int len) {
+extern void hexdump(const char *, int);
+extern void hexadump(const char *, int);
+
+void hexdump2(const char *buf, int len) {
     int i, f;
     const unsigned char *b = buf;
     for (i = 0; i < len; i++, b++) {
@@ -14,6 +17,21 @@ void hexdump2(char *buf, int len) {
         printf("%02x", *b);
     }
     printf("\n");
+}
+
+unsigned short read16be(const void *buf) {
+    unsigned char *p = (unsigned char *)buf;
+    return (p[0] << 8) | p[1];
+}
+
+void dump_packet(const char *buf, int size) {
+    if (read16be(&buf[12]) == ETH_ARP) {
+        printf("[Packet (ARP)]\n");
+        hexadump(buf, size);
+    } else {
+        printf("[Packet]\n");
+        hexdump(buf, size);
+    }
 }
 
 int xinu_read(int did, char *buf, unsigned size) {
@@ -24,6 +42,7 @@ int xinu_read(int did, char *buf, unsigned size) {
 int xinu_write(int did, char *buf, unsigned size) {
     printf("write(%d, %p, %u)\n", did, buf, size);
     hexdump2(buf, size);
+    if (did == 2) dump_packet(buf, size);
     return 0;
 }
 
