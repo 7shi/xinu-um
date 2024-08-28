@@ -164,13 +164,22 @@ extern int icmp_register(unsigned);
 extern int icmp_send(unsigned, unsigned short, unsigned short, unsigned short, char *, int);
 extern int icmp_release(int);
 
+extern unsigned char NetData[48];
+
 int main(int argc, char *argv[])
 {
+    int result;
     net_init();
+
+    const char *myips = "192.168.0.81";
+    unsigned myipaddr;
+    result = dnslookup(myips, &myipaddr);
+    printf("dnslookup(\"%s\", %p) => %d\n", myips, &myipaddr, result);
+    memcpy(NetData, &myipaddr, 4);
 
     const char *ips = "192.168.0.100";
     unsigned ipaddr;
-    int result = dnslookup(ips, &ipaddr);
+    result = dnslookup(ips, &ipaddr);
     printf("dnslookup(\"%s\", %p) => %d\n", ips, &ipaddr, result);
     printf("Pinging %d.%d.%d.%d\n",
             (ipaddr>>24)&0xff,
