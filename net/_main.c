@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <sys/time.h>
 
 extern void hexdump(char *, int);
@@ -132,8 +133,8 @@ int xinu_control(int a, int b, long c, long d) {
     printf("control(%d, %d, %p, %p)\n", a, b, c, d);
     // ETHER0, ETH_CTRL_GET_MAC, (intptr)NetData.ethucast, 0
     if (a == 2 && b == 1) {
-        int mac = (int)(long)&a;
-        *(int *)c = mac;
+        long mac = ((long)&a) & 0xffffffffffffL;
+        memcpy((void *)c, &mac, 6);
         printf("MAC addr => %p\n", mac);
     }
     return 0;
