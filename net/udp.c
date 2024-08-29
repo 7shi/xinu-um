@@ -310,6 +310,54 @@ int32	udp_recvaddr (
 }
 
 /*------------------------------------------------------------------------
+ * udp_packet  -  Create a UDP packet
+ *------------------------------------------------------------------------
+ */
+int32	udp_packet (
+	 struct netpacket *pkt,
+	 char   *buff,			/* Buffer of UDP data		*/
+	 int32	len,			/* Length of data in buffer	*/
+	 uint16 ident,			/* Datagram IDENT field		*/
+	 uint32	remip,			/* Remote IP address to use	*/
+	 uint16	remport,		/* Remote protocol port to use	*/
+	 uint32	locip,			/* Local IP address taken from	*/
+					/*   the interface		*/
+	 uint16	locport		/* Local protocol port to use	*/
+	)
+{
+	int32	pktlen;			/* Total packet length		*/
+	char	*udataptr;		/* Pointer to UDP data		*/
+
+	/* Compute packet length as UDP data size + fixed header size	*/
+
+	pktlen = ((char *)&pkt->net_udpdata - (char *)pkt) + len;
+
+	/* Create a UDP packet in pkt */
+
+	memcpy((char *)pkt->net_ethsrc,NetData.ethucast,ETH_ADDR_LEN);
+	pkt->net_ethtype = 0x0800;	/* Type is IP			*/
+	pkt->net_ipvh = 0x45;		/* IP version and hdr length	*/
+	pkt->net_iptos = 0x00;		/* Type of service		*/
+	pkt->net_iplen= pktlen - ETH_HDR_LEN;/* Total IP datagram length*/
+	pkt->net_ipid = ident;		/* Datagram gets next IDENT	*/
+	pkt->net_ipfrag = 0x0000;	/* IP flags & fragment offset	*/
+	pkt->net_ipttl = 0xff;		/* IP time-to-live		*/
+	pkt->net_ipproto = IP_UDP;	/* Datagram carries UDP		*/
+	pkt->net_ipcksum = 0x0000;	/* Initial checksum		*/
+	pkt->net_ipsrc = locip;		/* IP source address		*/
+	pkt->net_ipdst = remip;		/* IP destination address	*/
+
+	pkt->net_udpsport = locport;	/* Local UDP protocol port	*/
+	pkt->net_udpdport = remport;	/* Remote UDP protocol port	*/
+	pkt->net_udplen = (uint16)(UDP_HDR_LEN+len); /* UDP length	*/
+	pkt->net_udpcksum = 0x0000;	/* Ignore UDP checksum		*/
+	udataptr = (char *) pkt->net_udpdata;
+	memcpy(udataptr, buff, len);
+
+	return pktlen;
+}
+
+/*------------------------------------------------------------------------
  * udp_send  -  Send a UDP packet using info in a UDP table entry
  *------------------------------------------------------------------------
  */
@@ -321,14 +369,7 @@ status	udp_send (
 {
 	intmask	mask;			/* Saved interrupt mask		*/
 	struct	netpacket *pkt;		/* Pointer to packet buffer	*/
-	int32	pktlen;			/* Total packet length		*/
 	static	uint16 ident = 1;	/* Datagram IDENT field		*/
-	char	*udataptr;		/* Pointer to UDP data		*/
-	uint32	remip;			/* Remote IP address to use	*/
-	uint16	remport;		/* Remote protocol port to use	*/
-	uint16	locport;		/* Local protocol port to use	*/
-	uint32	locip;			/* Local IP address taken from	*/
-					/*   the interface		*/
 	struct	udpentry *udptr;	/* Pointer to table entry	*/
 
 	/* Ensure only one process can access the UDP table at a time	*/
@@ -355,15 +396,10 @@ status	udp_send (
 
 	/* Verify that the slot has a specified remote address */
 
-	remip = udptr->udremip;
-	if (remip == 0) {
+	if (udptr->udremip == 0) {
 		restore(mask);
 		return SYSERR;
 	}
-
-	locip = NetData.ipucast;
-	remport = udptr->udremport;
-	locport = udptr->udlocport;
 
 	/* Allocate a network buffer to hold the packet */
 
@@ -374,31 +410,9 @@ status	udp_send (
 		return SYSERR;
 	}
 
-	/* Compute packet length as UDP data size + fixed header size	*/
-
-	pktlen = ((char *)&pkt->net_udpdata - (char *)pkt) + len;
-
-	/* Create a UDP packet in pkt */
-
-	memcpy((char *)pkt->net_ethsrc,NetData.ethucast,ETH_ADDR_LEN);
-	pkt->net_ethtype = 0x0800;	/* Type is IP			*/
-	pkt->net_ipvh = 0x45;		/* IP version and hdr length	*/
-	pkt->net_iptos = 0x00;		/* Type of service		*/
-	pkt->net_iplen= pktlen - ETH_HDR_LEN;/* Total IP datagram length*/
-	pkt->net_ipid = ident++;	/* Datagram gets next IDENT	*/
-	pkt->net_ipfrag = 0x0000;	/* IP flags & fragment offset	*/
-	pkt->net_ipttl = 0xff;		/* IP time-to-live		*/
-	pkt->net_ipproto = IP_UDP;	/* Datagram carries UDP		*/
-	pkt->net_ipcksum = 0x0000;	/* Initial checksum		*/
-	pkt->net_ipsrc = locip;		/* IP source address		*/
-	pkt->net_ipdst = remip;		/* IP destination address	*/
-
-	pkt->net_udpsport = locport;	/* Local UDP protocol port	*/
-	pkt->net_udpdport = remport;	/* Remote UDP protocol port	*/
-	pkt->net_udplen = (uint16)(UDP_HDR_LEN+len); /* UDP length	*/
-	pkt->net_udpcksum = 0x0000;	/* Ignore UDP checksum		*/
-	udataptr = (char *) pkt->net_udpdata;
-	memcpy(udataptr, buff, len);
+	udp_packet(pkt, buff, len, ident++,
+		udptr->udremip, udptr->udremport,
+		NetData.ipucast, udptr->udlocport);
 
 	/* Call ipsend to send the datagram */
 
