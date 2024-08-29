@@ -18,7 +18,7 @@ void	arp_init(void)
 }
 
 /*------------------------------------------------------------------------
- * arp_packet  -  Create an ARP packet
+ * arp_packet  -  Hand-craft an ARP reply packet
  *------------------------------------------------------------------------
  */
 void arp_packet(
@@ -26,8 +26,6 @@ void arp_packet(
 	const byte *dst_mac, uint32 dst_ip,
 	const byte *src_mac, uint32 src_ip)
 {
-	/* Hand-craft an ARP reply packet and send back to requester	*/
-
 	if (dst_mac) {
 		memcpy(apkt->arp_ethdst, dst_mac, ARP_HALEN);
 	} else {
