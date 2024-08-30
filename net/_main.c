@@ -138,11 +138,11 @@ void reply_dhcp(const uint8_t *buf, const uint8_t *msg) {
 
     uint8_t *dhcp = calloc(1, 512);
 
-    dhcp[0] = 2;                           // boot reply
-    memcpy(dhcp + 1, msg + 1, 2);          // transaction ID
-    memcpy(dhcp + 4, msg + 4, 4);          // xid
-    write32be(dhcp + 16, next_ip);         // your IP
-    memcpy(dhcp + 28, msg + 28, 16);       // client MAC
+    dhcp[0] = 2;                        // boot reply
+    memcpy(dhcp + 1, msg + 1, 2);       // transaction ID
+    memcpy(dhcp + 4, msg + 4, 4);       // xid
+    write32be(dhcp + 16, next_ip);      // your IP
+    memcpy(dhcp + 28, msg + 28, 16);    // client MAC
     if (dhcptype == 5) {
         uint32_t ret = next_ip++;
         if (next_ip >= IP_POOL_END) next_ip = IP_POOL_START;
