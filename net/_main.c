@@ -198,6 +198,37 @@ void reply_dhcp(const uint8_t *buf, const uint8_t *msg) {
     ip_in(pktptr);
 }
 
+extern uint8_t *icmp_mkpkt(
+    uint32_t, uint16_t, uint16_t, uint16_t, const void *, int32_t);
+extern void icmp_hton(void *);
+extern uint16_t icmp_cksum(void *, int);
+
+static void reply_icmp(const uint8_t *buf, int size) {
+    uint32_t dstip = read32be(buf + 26);    // net_ipsrc
+    uint32_t srcip = read32be(buf + 30);    // net_ipdst
+    uint16_t ident = read16be(buf + 38);    // net_icident
+    uint16_t seq   = read16be(buf + 40);    // net_icseq
+    printf("dstip: %x, srcip: %x, ident: %x, seq: %x\n", dstip, srcip, ident, seq);
+    uint8_t *pktptr = icmp_mkpkt(dstip, 0, ident, seq, buf + 42, size - 42);
+    memcpy(pktptr, pktptr + 6, 6);  // destination MAC address
+    memcpy(pktptr + 6, buf, 6);     // source MAC address
+    *(uint32_t *)(pktptr + 26) = srcip;  // net_ipsrc
+
+    // adjust packet
+    icmp_hton(pktptr);  // from `ip_out()`
+    write16be(pktptr + 36, 0);  // checksum
+    write16be(pktptr + 36, icmp_cksum(pktptr + 34, size - 34));  // checksum
+    adjust_packet(pktptr);
+
+    // show packet
+    hexdump2(pktptr, size);
+    dump_packet(pktptr, size);
+
+    // send packet: from `netin()`
+    eth_ntoh(pktptr);
+    ip_in(pktptr);
+}
+
 int xinu_write(int did, const uint8_t *buf, uint32_t size) {
     printf("write(%d, %p, %u)\n", did, buf, size);
     hexdump2(buf, size);
@@ -220,6 +251,9 @@ int xinu_write(int did, const uint8_t *buf, uint32_t size) {
                     dhcp_dump((void *)payload, size - (payload - buf));
                     reply_dhcp(buf, payload);
                 }
+            } else if (protocol == 1) {  // ICMP
+                printf("==== ICMP Reply ====\n");
+                reply_icmp(buf, size);
             }
         }
     }
