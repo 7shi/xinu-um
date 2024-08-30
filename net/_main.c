@@ -11,7 +11,7 @@
 extern void hexdump(const uint8_t *, int);
 extern void hexadump(const uint8_t *, int);
 
-void hexdump2(const void *buf, int len) {
+static void hexdump2(const void *buf, int len) {
     int i, f;
     const uint8_t *b = buf;
     printf("==== Dump ==== (0x%x)\n", len);
@@ -24,23 +24,23 @@ void hexdump2(const void *buf, int len) {
     printf("\n");
 }
 
-uint16_t read16be(const void *buf) {
+static uint16_t read16be(const void *buf) {
     const uint8_t *p = (const uint8_t *)buf;
     return (p[0] << 8) | p[1];
 }
 
-uint32_t read32be(const void *buf) {
+static uint32_t read32be(const void *buf) {
     const uint8_t *p = (const uint8_t *)buf;
     return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
 }
 
-void write16be(void *buf, uint16_t val) {
+static void write16be(void *buf, uint16_t val) {
     uint8_t *p = (uint8_t *)buf;
     p[0] = val >> 8;
     p[1] = val;
 }
 
-void write32be(void *buf, uint32_t val) {
+static void write32be(void *buf, uint32_t val) {
     uint8_t *p = (uint8_t *)buf;
     p[0] = val >> 24;
     p[1] = val >> 16;
@@ -48,7 +48,7 @@ void write32be(void *buf, uint32_t val) {
     p[3] = val;
 }
 
-void ptr2mac(uint8_t *buf, void *p) {
+static void ptr2mac(uint8_t *buf, void *p) {
     intptr_t mac = (intptr_t)p;
     buf[0] = mac >> 40;
     buf[1] = mac >> 32;
@@ -58,7 +58,7 @@ void ptr2mac(uint8_t *buf, void *p) {
     buf[5] = mac;
 }
 
-int dump_packet(const uint8_t *buf, uint32_t size) {
+static int dump_packet(const uint8_t *buf, uint32_t size) {
     uint16_t ret = read16be(&buf[12]);
     if (ret == ETH_ARP) {
         printf("==== Packet (ARP) ====\n");
