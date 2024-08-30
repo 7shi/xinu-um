@@ -6,6 +6,7 @@
 #include <sys/time.h>
 
 #define ETH_ARP 0x0806
+#define ETH_IP  0x0800
 
 extern void hexdump(const uint8_t *, int);
 extern void hexadump(const uint8_t *, int);
@@ -31,6 +32,20 @@ uint16_t read16be(const void *buf) {
 uint32_t read32be(const void *buf) {
     const uint8_t *p = (const uint8_t *)buf;
     return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+}
+
+void write16be(void *buf, uint16_t val) {
+    uint8_t *p = (uint8_t *)buf;
+    p[0] = val >> 8;
+    p[1] = val;
+}
+
+void write32be(void *buf, uint32_t val) {
+    uint8_t *p = (uint8_t *)buf;
+    p[0] = val >> 24;
+    p[1] = val >> 16;
+    p[2] = val >> 8;
+    p[3] = val;
 }
 
 void ptr2mac(uint8_t *buf, void *p) {
@@ -68,18 +83,136 @@ extern void arp_in(void *);
 
 extern uint8_t NetData[48];
 
+void reply_arp(const uint8_t *buf) {
+    const int apkt_size = 42;
+    uint8_t *apkt = malloc(apkt_size);
+    uint8_t mac[6];
+    ptr2mac(mac, apkt);
+    arp_packet(apkt, 2, NetData + 33, *(uint32_t *)NetData, mac, read32be(buf + 0x26));
+    hexdump2(apkt, apkt_size);
+    dump_packet(apkt, apkt_size);
+    arp_in(apkt);
+}
+
+#define IP_DHCP_SERVER 0xc0a80001 // 192.168.0.1
+#define IP_POOL_START  0xc0a80051 // 192.168.0.81
+#define IP_POOL_END    0xc0a80063 // 192.168.0.99
+
+extern void	dhcp_dump(void *, uint32_t);
+extern int32_t udp_packet(
+    void *, void *, int32_t, uint16_t, uint32_t, uint16_t, uint32_t, uint16_t);
+extern void udp_hton(void *);
+extern void ip_hton(void *);
+extern uint16_t ipcksum(void *);
+extern void eth_hton(void *);
+extern void eth_ntoh(void *);
+extern void ip_in(void *);
+
+void reply_dhcp(const uint8_t *buf, const uint8_t *msg) {
+    static uint32_t next_ip = IP_POOL_START;
+    int p = 240, ot;
+    uint8_t msgtype = 0, dhcptype = 5;
+    while ((ot = msg[p]) != 255) {
+        printf("p: %d, ot: %d\n", p, ot);
+        if (ot == 53) msgtype = msg[p + 2];
+        p += ot ? 2 + msg[p + 1] : 1;
+    }
+
+    if (msgtype == 1) {
+        dhcptype = 2;
+        printf("#### DHCP Offer ####\n");
+    } else if (msgtype == 3) {
+        printf("#### DHCP ACK ####\n");
+    } else {
+        printf("DHCP %d\n", msgtype);
+    }
+
+    uint8_t *dhcp = calloc(1, 512);
+
+    dhcp[0] = 2;                           // boot reply
+    memcpy(dhcp + 1, msg + 1, 2);          // transaction ID
+    memcpy(dhcp + 4, msg + 4, 4);          // xid
+    write32be(dhcp + 16, next_ip);         // your IP
+    memcpy(dhcp + 28, msg + 28, 16);       // client MAC
+    if (dhcptype == 5) {
+        uint32_t ret = next_ip++;
+        if (next_ip >= IP_POOL_END) next_ip = IP_POOL_START;
+    }
+
+    // set magic cookie
+    uint8_t *options = dhcp + 236;
+    memcpy(options, msg + 236, 4);  // magic cookie
+
+    // set DHCP message type option
+    options[4] = 53;        // option: DHCP message type
+    options[5] = 1;         // length
+    options[6] = dhcptype;  // DHCP offer or DHCP ACK
+
+    // set subnet mask option
+    options[7] = 1;     // option: subnet mask
+    options[8] = 4;     // length
+    write32be(options + 9, 0xffffff00);  // 255.255.255.0
+
+    // set lease time option
+    options[13] = 51;    // option: IP address lease time
+    options[14] = 4;     // length
+    write32be(options + 15, 24 * 60 * 60);  // 1 day in seconds
+
+    // set server IP option
+    options[19] = 54;    // option: server IP
+    options[20] = 4;     // length
+    write32be(options + 21, IP_DHCP_SERVER);
+
+    // set terminator
+    options[25] = 255;  // end of options
+
+    int udp_len = 236 + 26;
+
+    uint8_t *pktptr = calloc(1, 512);
+    int len = udp_packet(pktptr, dhcp, udp_len, 1, 0, 68, IP_DHCP_SERVER, 67);
+    free(dhcp);
+    memcpy(pktptr, pktptr + 6, 6);      // destination MAC address
+    ptr2mac(pktptr + 6, reply_dhcp);    // source MAC address
+
+    udp_hton(pktptr);
+    ip_hton(pktptr);
+    write16be(pktptr + 24, 0);  // checksum
+    write16be(pktptr + 24, ipcksum(pktptr));  // checksum
+    eth_hton(pktptr);
+
+    hexdump2(pktptr, len);
+    dump_packet(pktptr, len);
+    printf("==== DHCP Reply ====\n");
+    dhcp_dump(pktptr + (len - udp_len), udp_len);
+
+    eth_ntoh(pktptr);
+    ip_in(pktptr);
+}
+
 int xinu_write(int did, const uint8_t *buf, uint32_t size) {
     printf("write(%d, %p, %u)\n", did, buf, size);
     hexdump2(buf, size);
-    if (did == 2 && dump_packet(buf, size) == ETH_ARP && read16be(&buf[14]) == 1) {
-        const int apkt_size = 42;
-        uint8_t *apkt = (uint8_t *)malloc(apkt_size);
-        uint8_t mac[6];
-        ptr2mac(mac, apkt);
-        arp_packet(apkt, 2, &NetData[33], *(unsigned *)NetData, mac, read32be(&buf[0x26]));
-        hexdump2(apkt, apkt_size);
-        dump_packet(apkt, apkt_size);
-        arp_in(apkt);
+    if (did == 2) {
+        int eth_type = dump_packet(buf, size);
+        if (eth_type == ETH_ARP && read16be(buf + 14) == 1) {
+            reply_arp(buf);
+        } else if (eth_type == ETH_IP) {
+            const uint8_t *ip_header = buf + 14;
+            int protocol = ip_header[9];
+            printf("protocol: %d\n", protocol);
+            if (protocol == 17) {  // UDP
+                const uint8_t *udp_header = ip_header + (ip_header[0] & 0xF) * 4;
+                unsigned short src_port = read16be(udp_header);
+                unsigned short dst_port = read16be(udp_header + 2);
+                printf("src_port: %d, dst_port: %d\n", src_port, dst_port);
+                const uint8_t *payload = udp_header + 8;
+                if (src_port == 68 && dst_port == 67 && payload[0] == 1) {
+                    printf("==== DHCP Request ====\n");
+                    dhcp_dump((void *)payload, size - (payload - buf));
+                    reply_dhcp(buf, payload);
+                }
+            }
+        }
     }
     return 0;
 }
@@ -216,6 +349,7 @@ int xinu_signal(int sid) {
 #define ICMP_ECHOREQST 8
 
 extern void net_init();
+extern int getlocalip();
 extern int dnslookup(const char *, uint32_t *);
 extern int icmp_register(uint32_t);
 extern int icmp_send(uint32_t, uint16_t, uint16_t, uint16_t, uint8_t *, int);
@@ -226,11 +360,8 @@ int main(int argc, char *argv[])
     int result;
     net_init();
 
-    const char *myips = "192.168.0.81";
-    uint32_t myipaddr;
-    result = dnslookup(myips, &myipaddr);
-    printf("dnslookup(\"%s\", %p) => %d\n", myips, &myipaddr, result);
-    memcpy(NetData, &myipaddr, 4);
+    result = getlocalip();
+    printf("getlocalip() => %p\n", result);
 
     const char *ips = "192.168.0.100";
     uint32_t ipaddr;
