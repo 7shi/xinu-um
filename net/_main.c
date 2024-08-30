@@ -31,6 +31,16 @@ uint32_t read32be(const void *buf) {
     return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
 }
 
+void ptr2mac(uint8_t *buf, void *p) {
+    intptr_t mac = (intptr_t)p;
+    buf[0] = mac >> 40;
+    buf[1] = mac >> 32;
+    buf[2] = mac >> 24;
+    buf[3] = mac >> 16;
+    buf[4] = mac >> 8;
+    buf[5] = mac;
+}
+
 int dump_packet(const uint8_t *buf, uint32_t size) {
     uint16_t ret = read16be(&buf[12]);
     if (ret == ETH_ARP) {
@@ -62,8 +72,9 @@ int xinu_write(int did, const uint8_t *buf, uint32_t size) {
     if (did == 2 && dump_packet(buf, size) == ETH_ARP && read16be(&buf[14]) == 1) {
         const int apkt_size = 42;
         uint8_t *apkt = (uint8_t *)malloc(apkt_size);
-        uint64_t mac = ((long)apkt) & 0xffffffffffffL;
-        arp_packet(apkt, 2, &NetData[33], *(unsigned *)NetData, &mac, read32be(&buf[0x26]));
+        uint8_t mac[6];
+        ptr2mac(mac, apkt);
+        arp_packet(apkt, 2, &NetData[33], *(unsigned *)NetData, mac, read32be(&buf[0x26]));
         hexdump2(apkt, apkt_size);
         dump_packet(apkt, apkt_size);
         arp_in(apkt);
@@ -177,8 +188,8 @@ int xinu_control(int a, int b, intptr_t c, intptr_t d) {
     printf("control(%d, %d, %p, %p)\n", a, b, c, d);
     // ETHER0, ETH_CTRL_GET_MAC, (intptr)NetData.ethucast, 0
     if (a == 2 && b == 1) {
-        long mac = ((long)&a) & 0xffffffffffffL;
-        memcpy((void *)c, &mac, 6);
+        ptr2mac((uint8_t *)c, &a);
+        intptr_t mac = ((intptr_t)&a) & 0xffffffffffffL;
         printf("MAC addr => %p\n", mac);
     }
     return 0;
