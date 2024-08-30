@@ -59,15 +59,21 @@ static void ptr2mac(uint8_t *buf, void *p) {
 }
 
 static int dump_packet(const uint8_t *buf, uint32_t size) {
-    uint16_t ret = read16be(&buf[12]);
-    if (ret == ETH_ARP) {
+    uint16_t type = read16be(&buf[12]);
+    if (type == ETH_ARP) {
         printf("==== Packet (ARP) ====\n");
         hexadump(buf, size - 14);
-    } else {
-        printf("==== Packet ====\n");
-        hexdump(buf, size - 14);
+        return -1;
+    } else if (type == ETH_IP) {
+        int protocol = buf[23];
+        printf("protocol: %d\n", protocol);
+        if (protocol == 17) {  // UDP
+            printf("==== Packet (UDP) ====\n");
+            hexdump(buf, size - 14);
+        }
+        return protocol;
     }
-    return ret;
+    return 0;
 }
 
 int xinu_read(int did, uint8_t *buf, uint32_t size) {
@@ -222,7 +228,6 @@ static void reply_icmp(const uint8_t *buf, int size) {
 
     // show packet
     hexdump2(pktptr, size);
-    dump_packet(pktptr, size);
 
     // send packet: from `netin()`
     eth_ntoh(pktptr);
@@ -233,28 +238,24 @@ int xinu_write(int did, const uint8_t *buf, uint32_t size) {
     printf("write(%d, %p, %u)\n", did, buf, size);
     hexdump2(buf, size);
     if (did == 2) {
-        int eth_type = dump_packet(buf, size);
-        if (eth_type == ETH_ARP && read16be(buf + 14) == 1) {
+        int type = dump_packet(buf, size);
+        if (type == -1 && read16be(buf + 14) == 1) {
             reply_arp(buf);
-        } else if (eth_type == ETH_IP) {
+        } else if (type == 17) {  // UDP
             const uint8_t *ip_header = buf + 14;
-            int protocol = ip_header[9];
-            printf("protocol: %d\n", protocol);
-            if (protocol == 17) {  // UDP
-                const uint8_t *udp_header = ip_header + (ip_header[0] & 0xF) * 4;
-                unsigned short src_port = read16be(udp_header);
-                unsigned short dst_port = read16be(udp_header + 2);
-                printf("src_port: %d, dst_port: %d\n", src_port, dst_port);
-                const uint8_t *payload = udp_header + 8;
-                if (src_port == 68 && dst_port == 67 && payload[0] == 1) {
-                    printf("==== DHCP Request ====\n");
-                    dhcp_dump((void *)payload, size - (payload - buf));
-                    reply_dhcp(buf, payload);
-                }
-            } else if (protocol == 1) {  // ICMP
-                printf("==== ICMP Reply ====\n");
-                reply_icmp(buf, size);
+            const uint8_t *udp_header = ip_header + (ip_header[0] & 0xF) * 4;
+            unsigned short src_port = read16be(udp_header);
+            unsigned short dst_port = read16be(udp_header + 2);
+            printf("src_port: %d, dst_port: %d\n", src_port, dst_port);
+            const uint8_t *payload = udp_header + 8;
+            if (src_port == 68 && dst_port == 67 && payload[0] == 1) {
+                printf("==== DHCP Request ====\n");
+                dhcp_dump((void *)payload, size - (payload - buf));
+                reply_dhcp(buf, payload);
             }
+        } else if (type == 1) {  // ICMP
+            printf("==== ICMP Reply ====\n");
+            reply_icmp(buf, size);
         }
     }
     return 0;
