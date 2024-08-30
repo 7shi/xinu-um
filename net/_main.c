@@ -13,9 +13,11 @@ extern void hexadump(const uint8_t *, int);
 void hexdump2(const void *buf, int len) {
     int i, f;
     const uint8_t *b = buf;
-    printf("==== Dump ====\n");
+    printf("==== Dump ==== (0x%x)\n", len);
     for (i = 0; i < len; i++, b++) {
-        if (i) printf(i & 15 ? " " : "\n");
+        int f = i & 15;
+        if (i) printf(f ? " " : "\n");
+        if (!f) printf("%04x: ", i);
         printf("%02x", *b);
     }
     printf("\n");
