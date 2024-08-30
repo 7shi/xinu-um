@@ -98,13 +98,22 @@ void reply_arp(const uint8_t *buf) {
 #define IP_POOL_START  0xc0a80051 // 192.168.0.81
 #define IP_POOL_END    0xc0a80063 // 192.168.0.99
 
+extern void ip_hton(void *);
+extern uint16_t ipcksum(void *);
+extern void eth_hton(void *);
+
+static void adjust_packet(uint8_t *pktptr) {
+    // from `ip_out()`
+    ip_hton(pktptr);
+    write16be(pktptr + 24, 0);  // checksum
+    write16be(pktptr + 24, ipcksum(pktptr));  // checksum
+    eth_hton(pktptr);
+}
+
 extern void	dhcp_dump(void *, uint32_t);
 extern int32_t udp_packet(
     void *, void *, int32_t, uint16_t, uint32_t, uint16_t, uint32_t, uint16_t);
 extern void udp_hton(void *);
-extern void ip_hton(void *);
-extern uint16_t ipcksum(void *);
-extern void eth_hton(void *);
 extern void eth_ntoh(void *);
 extern void ip_in(void *);
 
@@ -174,12 +183,9 @@ void reply_dhcp(const uint8_t *buf, const uint8_t *msg) {
     memcpy(pktptr, pktptr + 6, 6);      // destination MAC address
     ptr2mac(pktptr + 6, reply_dhcp);    // source MAC address
 
-    // adjust packet: from `ip_out()`
-    udp_hton(pktptr);
-    ip_hton(pktptr);
-    write16be(pktptr + 24, 0);  // checksum
-    write16be(pktptr + 24, ipcksum(pktptr));  // checksum
-    eth_hton(pktptr);
+    // adjust packet
+    udp_hton(pktptr);   // from `ip_out()`
+    adjust_packet(pktptr);
 
     // show packet
     hexdump2(pktptr, len);
