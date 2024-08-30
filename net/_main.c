@@ -348,8 +348,6 @@ int xinu_signal(int sid) {
     return 0;
 }
 
-#define SYSERR (-1)
-#define ICMP_ECHOREQST 8
 #define NPROC 2
 
 struct {
@@ -366,57 +364,12 @@ static void init_xinu() {
 
 extern void net_init();
 extern int getlocalip();
-extern int dnslookup(const char *, uint32_t *);
-extern int icmp_register(uint32_t);
-extern int icmp_send(uint32_t, uint16_t, uint16_t, uint16_t, uint8_t *, int);
-extern int icmp_release(int);
+extern int xsh_ping(int, char **);
 
 int main(int argc, char *argv[])
 {
-    int result;
     init_xinu();
     net_init();
-
-    result = getlocalip();
-    printf("getlocalip() => %p\n", result);
-
-    const char *ips = "192.168.0.100";
-    uint32_t ipaddr;
-    result = dnslookup(ips, &ipaddr);
-    printf("dnslookup(\"%s\", %p) => %d\n", ips, &ipaddr, result);
-    printf("Pinging %d.%d.%d.%d\n",
-            (ipaddr>>24)&0xff,
-            (ipaddr>>16)&0xff,
-            (ipaddr>>8)&0xff,
-            (ipaddr)&0xff);
-
-    /* Register to receive an ICMP Echo Reply */
-
-    int slot = icmp_register(ipaddr);
-    printf("icmp_register(%p) => %d\n", ipaddr, slot);
-    if (slot == SYSERR) {
-        fprintf(stderr,"%s: ICMP registration failed\n", ips);
-        return 1;
-    }
-
-    /* Fill the buffer with values - start with low-order byte of   */
-    /*  the sequence number and increment           */
-
-    int seq = 0;
-    int nextval = seq;
-    uint8_t buf[56];
-    for (int i = 0; i<sizeof(buf); i++) {
-        buf[i] = 0xff & nextval++;
-    }
-
-    /* Send an ICMP Echo Request */
-    int retval = icmp_send(ipaddr, ICMP_ECHOREQST, slot,
-                    seq++, buf, sizeof(buf));
-    if (retval == SYSERR) {
-        fprintf(stderr, "%s: cannot send ping\n", ips);
-        icmp_release(slot);
-        return 1;
-    }
-
-    return 0;
+    printf("getlocalip() => %p\n", getlocalip());
+    return xsh_ping(argc, argv);
 }
