@@ -350,6 +350,19 @@ int xinu_signal(int sid) {
 
 #define SYSERR (-1)
 #define ICMP_ECHOREQST 8
+#define NPROC 2
+
+struct {
+    intptr_t prdesc[5];
+} proctab[NPROC];
+
+static void init_xinu() {
+    for (int i = 0; i < NPROC; i++) {
+        proctab[i].prdesc[0] = (intptr_t)stdin;
+        proctab[i].prdesc[1] = (intptr_t)stdout;
+        proctab[i].prdesc[2] = (intptr_t)stderr;
+    }
+}
 
 extern void net_init();
 extern int getlocalip();
@@ -361,6 +374,7 @@ extern int icmp_release(int);
 int main(int argc, char *argv[])
 {
     int result;
+    init_xinu();
     net_init();
 
     result = getlocalip();

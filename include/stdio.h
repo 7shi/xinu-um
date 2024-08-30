@@ -19,14 +19,14 @@ extern	int32	fscanf(int32, char *, int32);
 
 /* Prototypes for formatted output functions */
 
-extern	int32	fprintf(int, char *, ...);
+extern	int32	fprintf(intptr, char *, ...);
 extern	int32	printf(const char *, ...);
 extern	int32	sprintf(char *, char *, ...);
 
 
 /* Prototypes for character input and output functions */
 
-extern	int32	fgetc(int);
+extern	int32	fgetc(intptr);
 extern	char	*fgets(char *, int32, int32);
 extern	int32	fputc(int32, int32);
 extern	int32	fputs(char *, int32);
