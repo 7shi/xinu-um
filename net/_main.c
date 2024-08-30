@@ -166,25 +166,28 @@ void reply_dhcp(const uint8_t *buf, const uint8_t *msg) {
     // set terminator
     options[25] = 255;  // end of options
 
-    int udp_len = 236 + 26;
-
+    // create UDP packet
     uint8_t *pktptr = calloc(1, 512);
+    int udp_len = 236 + 26;
     int len = udp_packet(pktptr, dhcp, udp_len, 1, 0, 68, IP_DHCP_SERVER, 67);
     free(dhcp);
     memcpy(pktptr, pktptr + 6, 6);      // destination MAC address
     ptr2mac(pktptr + 6, reply_dhcp);    // source MAC address
 
+    // adjust packet: from `ip_out()`
     udp_hton(pktptr);
     ip_hton(pktptr);
     write16be(pktptr + 24, 0);  // checksum
     write16be(pktptr + 24, ipcksum(pktptr));  // checksum
     eth_hton(pktptr);
 
+    // show packet
     hexdump2(pktptr, len);
     dump_packet(pktptr, len);
     printf("==== DHCP Reply ====\n");
     dhcp_dump(pktptr + (len - udp_len), udp_len);
 
+    // send packet: from `netin()`
     eth_ntoh(pktptr);
     ip_in(pktptr);
 }
