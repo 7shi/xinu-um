@@ -348,6 +348,7 @@ int xinu_signal(int sid) {
     return 0;
 }
 
+#define SYSERR (-1)
 #define NPROC 2
 
 struct {
@@ -362,6 +363,14 @@ static void init_xinu() {
     }
 }
 
+static void ip_str(char *s, uint32_t ip) {
+    snprintf(s, 16, "%d.%d.%d.%d",
+        (ip >> 24) & 0xff,
+        (ip >> 16) & 0xff,
+        (ip >> 8) & 0xff,
+        ip & 0xff);
+}
+
 extern void net_init();
 extern int getlocalip();
 extern int xsh_ping(int, char **);
@@ -369,7 +378,16 @@ extern int xsh_ping(int, char **);
 int main(int argc, char *argv[])
 {
     init_xinu();
+
     net_init();
-    printf("getlocalip() => %p\n", getlocalip());
+    int ip = getlocalip();
+    if (ip == SYSERR) {
+        fprintf(stderr, "getlocalip() failed\n");
+        return 1;
+    }
+    char ipaddr[16];
+    ip_str(ipaddr, ip);
+    printf("getlocalip() => %s\n", ipaddr);
+
     return xsh_ping(argc, argv);
 }
