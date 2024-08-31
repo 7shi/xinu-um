@@ -17,7 +17,7 @@ $(LIB): $(OBJECTS)
 	ar r $@ $^
 
 _main.o: _main.c
-	gcc -g -c $<
+	$(CC) -g -c $<
 
 $(TARGET): $(OBJECTS)
-	gcc -o $@ $^
+	$(CC) -o $@ $^
