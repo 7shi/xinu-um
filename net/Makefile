@@ -12,10 +12,6 @@ all: $(TARGET)
 clean:
 	rm -f $(TARGET) $(OBJECTS)
 
-$(LIB): $(OBJECTS)
-	rm -f $@
-	ar r $@ $^
-
 _main.o: _main.c
 	$(CC) -g -c $<
 
