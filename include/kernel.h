@@ -9,7 +9,7 @@ typedef	short		int16;
 typedef	unsigned int	uint32;
 typedef	unsigned short	uint16;
 typedef	unsigned long long uint64;
-typedef	long long intptr;
+typedef	long int intptr;
 
 /* Xinu-specific types */
 
