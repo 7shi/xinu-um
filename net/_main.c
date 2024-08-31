@@ -268,15 +268,16 @@ int disable() {
     return ret;
 }
 
-int restore(int mask) {
+void restore(int mask) {
     printf("restore(%d)\n", mask);
 }
 
 int kprintf(const char *format, ...) {
     va_list args;
     va_start(args, format);
-    vprintf(format, args);
+    int ret = vprintf(format, args);
     va_end(args);
+    return ret;
 }
 
 int mkbufpool(int bufsiz, int count)
@@ -291,9 +292,10 @@ void *getbuf(int bufsiz) {
     return ret;
 }
 
-void xinu_freebuf(void *p) {
+int xinu_freebuf(void *p) {
     printf("freebuf(%p)\n", p);
     free(p);
+    return 0;
 }
 
 void panic(const char *s) {
@@ -313,8 +315,9 @@ int recvtime(int ms) {
 
 int currpid = 1;
 
-void resched_cntl(int t) {
+int resched_cntl(int t) {
     printf("resched_cntl(%d)\n", t);
+    return 0;
 }
 
 #define SEMSLEN 16
@@ -336,12 +339,12 @@ int xinu_semcount(int semid) {
     return ret;
 }
 
-int getticks() {
-    int ret;
+int64_t getticks() {
+    int64_t ret;
     struct timeval tv;
     gettimeofday(&tv, NULL);
     ret = tv.tv_usec;
-    printf("getticks() => %d\n", ret);
+    printf("getticks() => %lld\n", ret);
     return ret;
 }
 
@@ -359,17 +362,18 @@ int create(
     return ret;
 }
 
-void xinu_resume(int id) {
+int xinu_resume(int id) {
     printf("resume(%d)\n", id);
+    return 0;
 }
 
 int xinu_control(int a, int b, intptr_t c, intptr_t d) {
-    printf("control(%d, %d, %p, %p)\n", a, b, c, d);
+    printf("control(%d, %d, %p, %p)\n", a, b, (void *)c, (void *)d);
     // ETHER0, ETH_CTRL_GET_MAC, (intptr)NetData.ethucast, 0
     if (a == 2 && b == 1) {
         ptr2mac((uint8_t *)c, &a);
         intptr_t mac = ((intptr_t)&a) & 0xffffffffffffL;
-        printf("MAC addr => %p\n", mac);
+        printf("MAC addr => %012lx\n", mac);
     }
     return 0;
 }
